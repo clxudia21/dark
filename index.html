@@ -15,6 +15,7 @@ pre {
     color: #aa0000; font-size: 11px; line-height: 1.05;
     user-select: none; position: relative;
     filter: blur(0.3px);
+    transform-origin: center center;
 }
 .char {
     display: inline-block; white-space: pre;
@@ -154,6 +155,15 @@ pre {
     var pre = document.getElementById('ascii');
     var allChars = [];
     var charRows = [];
+
+    function fitToScreen() {
+        var rows = art.length;
+        var maxH = window.innerHeight;
+        var fsByH = Math.floor(maxH / (rows * 1.05));
+        pre.style.fontSize = Math.max(fsByH, 4) + 'px';
+    }
+    fitToScreen();
+    window.addEventListener('resize', fitToScreen);
 
     art.forEach(function(line) {
         var row = [];
