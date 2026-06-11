@@ -12,8 +12,9 @@ body {
     font-family: 'Courier New', 'Courier', monospace; overflow: hidden;
 }
 pre {
-    color: #880000; font-size: 11px; line-height: 1.05;
+    color: #aa0000; font-size: 11px; line-height: 1.05;
     user-select: none; position: relative;
+    filter: blur(0.3px);
 }
 .char {
     display: inline-block; white-space: pre;
@@ -23,9 +24,15 @@ pre {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     pointer-events: none; z-index: 10; background: white;
 }
+#glow-bg {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none; z-index: 0;
+    background: radial-gradient(ellipse at 50% 50%, rgba(255,0,0,0.04) 0%, transparent 70%);
+}
 </style>
 </head>
 <body>
+<div id="glow-bg"></div>
 <pre id="ascii"></pre>
 <div id="flash-layer"></div>
 
@@ -191,17 +198,17 @@ pre {
     corruptLine();
 
     function jitter() {
-        var n = ri(3, 12);
+        var n = ri(1, 6);
         for (var i = 0; i < n; i++) {
             var idx = ri(0, allChars.length - 1);
             var c = allChars[idx];
             if (!c) continue;
-            var dx = ri(-3, 3);
-            var dy = ri(-2, 2);
+            var dx = ri(-2, 2);
+            var dy = ri(-1, 1);
             c.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-            setTimeout(function(el) { if (el) el.style.transform = ''; }, ri(20, 80), c);
+            setTimeout(function(el) { if (el) el.style.transform = ''; }, ri(30, 100), c);
         }
-        setTimeout(jitter, ri(40, 200));
+        setTimeout(jitter, ri(80, 400));
     }
     jitter();
 
@@ -210,43 +217,44 @@ pre {
         var row = charRows[rowIdx];
         if (!row) return;
         var dir = Math.random() > 0.5 ? 1 : -1;
-        var len = ri(5, 30);
+        var len = ri(4, 20);
         var start = ri(0, Math.max(0, row.length - len));
         for (var i = start; i < start + len && i < row.length; i++) {
-            if (row[i]) row[i].style.transform = 'translateX(' + (dir * ri(1, 5)) + 'px)';
+            if (row[i]) row[i].style.transform = 'translateX(' + (dir * ri(1, 4)) + 'px)';
         }
         setTimeout(function() {
             for (var i = start; i < start + len && i < row.length; i++) {
                 if (row[i]) row[i].style.transform = '';
             }
-        }, ri(40, 120));
-        setTimeout(waveShift, ri(50, 300));
+        }, ri(50, 150));
+        setTimeout(waveShift, ri(100, 500));
     }
     waveShift();
 
+    var dir = 1;
     function breathe() {
-        var scale = 1 + (Math.random() * 0.006);
+        var scale = 1 + (Math.random() * 0.003);
         anime.animate(pre, {
             scale: scale,
-            duration: ri(1500, 3000),
+            duration: ri(2000, 4000),
             ease: 'easeInOutSine',
             direction: 'alternate',
             loop: false
         });
-        setTimeout(breathe, ri(1500, 3000));
+        setTimeout(breathe, ri(2000, 4000));
     }
     breathe();
 
-    var glitchRows = charRows.slice(8, 35);
+    var glitchRows = charRows.slice(10, 30);
     function eyeGlitch() {
         var row = pick(glitchRows);
         if (!row) return;
         var center = Math.floor(row.length / 2);
-        var range = ri(3, 25);
+        var range = ri(5, 20);
         var start = center - range;
         var len = range * 2;
         for (var i = start; i < start + len && i < row.length; i++) {
-            if (row[i] && Math.random() > 0.6) {
+            if (row[i] && Math.random() > 0.7) {
                 row[i].style.opacity = '0';
             }
         }
@@ -254,54 +262,88 @@ pre {
             for (var i = start; i < start + len && i < row.length; i++) {
                 if (row[i]) row[i].style.opacity = '1';
             }
-        }, ri(20, 60));
-        setTimeout(eyeGlitch, ri(100, 1000));
+        }, ri(30, 80));
+        setTimeout(eyeGlitch, ri(200, 1500));
     }
     eyeGlitch();
 
     function ascend() {
         anime.animate(pre, {
-            translateY: ['0px', '-2px', '0px'],
-            duration: 4000,
+            translateY: ['0px', '-1px', '0px'],
+            duration: 6000,
             ease: 'easeInOutSine',
             loop: false
         });
-        setTimeout(ascend, 5000);
+        setTimeout(ascend, 8000);
     }
     ascend();
 
-    function skroll() {
-        anime.animate(pre, {
-            rotate: [0, ri(-1, 1) * 0.3, 0],
+    function neonRow(rowIdx, intensity) {
+        var row = charRows[rowIdx];
+        if (!row) return;
+        var s = '0 0 ' + ri(2,5) + 'px rgba(255,0,0,' + intensity + '), 0 0 ' + ri(5,12) + 'px rgba(200,0,0,' + (intensity*0.5) + '), 0 0 ' + ri(10,25) + 'px rgba(150,0,0,' + (intensity*0.2) + ')';
+        for (var i = 0; i < row.length; i++) {
+            if (row[i]) row[i].style.textShadow = s;
+        }
+    }
+
+    function clearNeon() {
+        for (var r = 0; r < charRows.length; r++) {
+            var row = charRows[r];
+            if (!row) continue;
+            for (var i = 0; i < row.length; i++) {
+                if (row[i]) row[i].style.textShadow = '';
+            }
+        }
+    }
+
+    function neonWave() {
+        clearNeon();
+        var peak = ri(0, charRows.length - 1);
+        var spread = ri(3, 8);
+        for (var r = 0; r < charRows.length; r++) {
+            var dist = Math.abs(r - peak);
+            if (dist <= spread) {
+                var intensity = 1 - (dist / spread);
+                neonRow(r, 0.1 + intensity * 0.6);
+            }
+        }
+        setTimeout(function() { clearNeon(); }, ri(100, 300));
+        setTimeout(neonWave, ri(200, 800));
+    }
+    neonWave();
+
+    function neonSweep() {
+        clearNeon();
+        var dir = Math.random() > 0.5 ? 1 : -1;
+        var len = ri(4, 10);
+        var start = dir > 0 ? 0 : charRows.length - 1;
+        for (var step = 0; step < len; step++) {
+            var idx = start + step * dir;
+            if (idx < 0 || idx >= charRows.length) break;
+            (function(rowIdx, d) {
+                setTimeout(function() { neonRow(rowIdx, 0.5 + Math.random() * 0.3); }, d);
+            })(idx, step * ri(20, 50));
+        }
+        setTimeout(function() { clearNeon(); }, ri(80, 200));
+        setTimeout(neonSweep, ri(300, 1500));
+    }
+    neonSweep();
+
+    function bgGlow() {
+        anime.animate('#glow-bg', {
+            opacity: [0.3, 0.8, 0.3],
             duration: ri(2000, 5000),
             ease: 'easeInOutSine',
             loop: false
         });
-        setTimeout(skroll, ri(2000, 5000));
+        setTimeout(bgGlow, ri(2000, 5000));
     }
-    skroll();
-
-    function charSwarm() {
-        var n = ri(5, 15);
-        var swaps = [];
-        for (var i = 0; i < n; i++) {
-            var idx = ri(0, allChars.length - 1);
-            var c = allChars[idx];
-            if (!c) continue;
-            var orig = c.textContent;
-            c.textContent = pick(['@', '#', '%', '&', 'O', 'X']);
-            swaps.push({ el: c, orig: orig });
-        }
-        setTimeout(function() {
-            swaps.forEach(function(s) { s.el.textContent = s.orig; });
-        }, ri(15, 50));
-        setTimeout(charSwarm, ri(200, 800));
-    }
-    charSwarm();
+    bgGlow();
 
     anime.animate('pre', {
-        opacity: [1, 0.88, 1],
-        duration: 80,
+        opacity: [1, 0.92, 1],
+        duration: 100 + ri(0, 100),
         loop: true,
         direction: 'alternate',
         ease: 'linear'
