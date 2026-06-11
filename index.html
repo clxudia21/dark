@@ -7,42 +7,119 @@
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-    background: #000; min-height: 100vh;
-    display: flex; justify-content: center; align-items: center;
-    font-family: 'Courier New', 'Courier', monospace; overflow: hidden;
+    background: #000; overflow: hidden; width: 100vw; height: 100vh;
+    display: flex; align-items: center; justify-content: center;
 }
-pre {
-    color: #aa0000; font-size: 11px; line-height: 1.05;
-    user-select: none; position: relative;
-    filter: blur(0.3px);
-    transform-origin: center center;
-}
-.char {
-    display: inline-block; white-space: pre;
-    transition: none;
-}
-#flash-layer {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; z-index: 10; background: white;
+canvas#three-canvas {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 0; display: block; pointer-events: none;
 }
 #glow-bg {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    pointer-events: none; z-index: 0;
-    background: radial-gradient(ellipse at 50% 50%, rgba(255,0,0,0.04) 0%, transparent 70%);
+    position: fixed; top: 50%; left: 50%; width: 60vmin; height: 60vmin;
+    transform: translate(-50%, -50%);
+    background: radial-gradient(circle, rgba(170,0,0,0.06) 0%, transparent 70%);
+    border-radius: 50%; pointer-events: none; z-index: 1;
+    animation: pulseGlow 4s ease-in-out infinite alternate;
 }
+@keyframes pulseGlow {
+    0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.4; }
+    100% { transform: translate(-50%, -50%) scale(1.3); opacity: 1; }
+}
+#ascii-wrap {
+    position: relative; z-index: 2; filter: blur(0.3px);
+    display: flex; align-items: center; justify-content: center;
+    width: 100vw; height: 100vh;
+}
+pre {
+    color: #aa0000; font-family: 'Courier New', 'Courier', monospace;
+    font-weight: bold; text-align: center; line-height: 1.05;
+    user-select: none; white-space: pre;
+}
+#flash-layer {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: 3; pointer-events: none; opacity: 0;
+    background: rgba(170,0,0,0.15); transition: opacity 0.05s;
+}
+#mic-status {
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    color: #440000; font-family: 'Courier New', monospace; font-size: 11px;
+    z-index: 10; opacity: 0.5; pointer-events: none; letter-spacing: 2px;
+}
+#mic-status.active { color: #aa0000; opacity: 0.8; }
+#player {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 99999;
+    background: rgba(0,0,0,0.85); border-top: 1px solid #220000;
+    font-family: 'Courier New', monospace; padding: 8px 16px;
+    display: flex; align-items: center; gap: 12px;
+    transform: translateZ(0); pointer-events: auto;
+}
+#player button {
+    background: transparent; border: 1px solid #440000; color: #660000;
+    font-family: inherit; font-size: 11px; padding: 4px 10px;
+    cursor: pointer; letter-spacing: 2px; text-transform: uppercase;
+    transition: all 0.3s; pointer-events: auto;
+}
+#player button:hover { border-color: #aa0000; color: #aa0000; }
+#player button.active { border-color: #aa0000; color: #aa0000; }
+#player .info {
+    color: #440000; font-size: 11px; letter-spacing: 1px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex-shrink: 0;
+}
+#player .info.active { color: #aa0000; }
+#player .info.name { max-width: 200px; flex-shrink: 1; }
+#player .seek-wrap {
+    flex: 1; display: flex; align-items: center; gap: 8px;
+    min-width: 0;
+}
+#player .seek-wrap input[type=range] {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 3px; background: #220000; border-radius: 2px; outline: none;
+    min-width: 40px;
+}
+#player .seek-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none;
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #660000; cursor: pointer; border: 1px solid #440000;
+}
+#player .seek-wrap input[type=range]::-webkit-slider-thumb:hover { background: #aa0000; }
+#player .seek-wrap input[type=range]::-moz-range-thumb {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: #660000; cursor: pointer; border: 1px solid #440000;
+}
+#player .time { color: #330000; font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+#mic-status {
+    position: fixed; top: 8px; left: 50%; transform: translateX(-50%);
+    color: #220000; font-family: 'Courier New', monospace; font-size: 10px;
+    z-index: 10; opacity: 0.4; pointer-events: none; letter-spacing: 2px;
+}
+#mic-status.active { color: #440000; opacity: 0.6; }
 </style>
 </head>
 <body>
+
+<canvas id="three-canvas"></canvas>
 <div id="glow-bg"></div>
-<pre id="ascii"></pre>
+<div id="ascii-wrap">
+    <pre id="ascii-pre"></pre>
+</div>
 <div id="flash-layer"></div>
+<div id="mic-status">[ MIC DETECTING ]</div>
+<div id="player">
+    <button id="load-btn">+ LOAD</button>
+    <button id="play-btn">PLAY</button>
+    <div class="info name" id="track-name">[ NO TRACK ]</div>
+    <div class="seek-wrap">
+        <input type="range" id="seek-bar" value="0" min="0" max="100">
+        <span class="time" id="time-display">00:00 / 00:00</span>
+    </div>
+    <input type="file" id="song-file" accept="audio/*" style="display:none">
+</div>
 
-<script src="anime.min.js"></script>
+<script src="three.min.js"></script>
 <script>
-(function() {
-    const { animate, random, stagger } = anime;
-
-    var art = [
+(function () {
+var art = [
 "#*=========================================+++++=======--===============================================================",
 "@#==========++===+======================+=+++++========-:===============================================================",
 "@#=========+++++=+=+==================+=++++++=========:-====================+=++=+====+================================",
@@ -50,7 +127,7 @@ pre {
 "@*==========+=+======================+=+++=+===========::--==================+++========================================",
 "@+====================================++==+==========--::--===============++++++========================================",
 "@+=====================-================+++==========--::--============++=+++++=======-=================================",
-"@+======================--================+==========--::---=============++=+=+=====--=============================-======",
+"@+======================--================+==========--::---=============++=+=+=====--=============================-====",
 "@=========================::-=========================-::-=-=============+=+======---===================================",
 "%==========================-:::-======================-::----======-======+=====-:-=======================-==-==========",
 "%============================-::::-===================-::-----====:===========-::=============================-=========",
@@ -71,9 +148,9 @@ pre {
 "@#====++++++++***++++===+++++++++++=::::..:.::::::.:...::::::::::-------==----===+-====-------------====================",
 "@#======+++++++****++++++*++*++++++--:::::.::::.::::::::::::::::-----=============------------------====================",
 "@%=======+++++++++++++++++++++++++=--:::::::::::::::-==+=----::::-====+*#%%%*======------------------===================",
-"@%======++++++++++++++++++++++=+=-:--::::::.::::-=*%%@@%%#==-::::-===+##**+======+*========-----------==================",
-"@%=====++**+*+++*++++++++++++=-:::::-:::::.:::::::::--===--::::::-================+*++=------------------------=-=======",
-"@%====++*+******++++++==++=-:::.::::---::::::........::.:..::::.:-==============++*****+=------------===================",
+"@%======++++++++++++++++++++++=+=-:--:::::::.::::-=*%%@@%%#==-::::-===+##**+======+*========-----------=================",
+"@%=====++**+*+++*++++++++++++=-:::::-:::::.::::::::::--===--::::::-================+*++=------------------------=-======",
+"@%====++*+******++++++==++=-:::.::::---::::::........::.:..::::.:.:-==============++*****+=------------=================",
 "@%=====++**##***++++===-:::::::---=+*##-::::::.:.::....:::::....:--==========++++******#**+=--------=-==================",
 "@%=====+********++=-:::::--===*#%%@@@@@%-----::::::-----=--::.::::=-===##%%*#*--==+++**+**+*++=-------==================",
 "@%====+++++++++=----=+*###%%%@@@@@@@@@@@%=-====*###*+++==::::----====+%@@%*%*---------=+++++*+++=----===================",
@@ -150,214 +227,488 @@ pre {
 "@@@@@@@@@@@@@@@@@@@%%%%%%##%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%@@@@@@@@@%%%##**+++=-:::::...:.......:..:::::::::::-",
 "@@@@@@@@@####%#%@@%%%%%%%%%####%@@@@@@@@@@@@@@%%%%%#####****+++++=====---:::::.:::.::.:.....:.::::.:...:::::::::::------",
 "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#*++====-----------------------------:::::::::::::::::::::-----------=-================+"
-    ];
+];
 
-    var pre = document.getElementById('ascii');
-    var allChars = [];
-    var charRows = [];
+var cols = art[0].length;
+var rows = art.length;
+var pre = document.getElementById('ascii-pre');
+var flashLayer = document.getElementById('flash-layer');
+var micStatus = document.getElementById('mic-status');
 
-    function fitToScreen() {
-        var rows = art.length;
-        var maxH = window.innerHeight;
-        var fsByH = Math.floor(maxH / (rows * 1.05));
-        pre.style.fontSize = Math.max(fsByH, 4) + 'px';
+// ===== BUILD ASCII DOM (spans) =====
+var fragment = document.createDocumentFragment();
+var spanLines = [];
+for (var r = 0; r < art.length; r++) {
+    var line = art[r];
+    var lineSpans = [];
+    for (var c = 0; c < line.length; c++) {
+        var sp = document.createElement('span');
+        sp.textContent = line[c];
+        fragment.appendChild(sp);
+        lineSpans.push(sp);
     }
+    var nl = document.createElement('span');
+    nl.textContent = '\n';
+    fragment.appendChild(nl);
+    lineSpans.push(nl);
+    spanLines.push(lineSpans);
+}
+pre.appendChild(fragment);
+
+// ===== THREE.JS SCENE =====
+var scene = new THREE.Scene();
+var camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 10);
+camera.position.z = 1;
+
+var renderer = new THREE.WebGLRenderer({
+    antialias: true, alpha: true, canvas: document.getElementById('three-canvas')
+});
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+var textureCanvas = document.createElement('canvas');
+textureCanvas.width = cols * 14;
+textureCanvas.height = rows * 16;
+var tCtx = textureCanvas.getContext('2d');
+
+function renderTex(offsetX, offsetY) {
+    tCtx.fillStyle = 'rgba(0,0,0,0)';
+    tCtx.clearRect(0, 0, textureCanvas.width, textureCanvas.height);
+    tCtx.font = 'bold 14px Courier New, monospace';
+    tCtx.textBaseline = 'top';
+    for (var r = 0; r < art.length; r++) {
+        tCtx.fillStyle = 'rgba(170,0,0,0.04)';
+        for (var c = 0; c < art[r].length; c++) {
+            tCtx.fillText(art[r][c], c * 14 + (offsetX || 0), r * 16 + (offsetY || 0));
+        }
+    }
+}
+renderTex();
+
+var tex = new THREE.CanvasTexture(textureCanvas);
+tex.minFilter = THREE.NearestFilter;
+tex.magFilter = THREE.NearestFilter;
+
+var bgGeo = new THREE.PlaneGeometry(2, 2);
+var bgMat = new THREE.MeshBasicMaterial({
+    map: tex, transparent: true, opacity: 0.15, depthWrite: false
+});
+var bgMesh = new THREE.Mesh(bgGeo, bgMat);
+scene.add(bgMesh);
+
+// Particles
+var particleCount = 300;
+var pGeo = new THREE.BufferGeometry();
+var pPos = new Float32Array(particleCount * 3);
+var pVel = new Float32Array(particleCount);
+var pSizes = new Float32Array(particleCount);
+
+for (var i = 0; i < particleCount; i++) {
+    pPos[i * 3] = (Math.random() - 0.5) * 2;
+    pPos[i * 3 + 1] = (Math.random() - 0.5) * 2;
+    pPos[i * 3 + 2] = (Math.random() - 0.5) * 2;
+    pVel[i] = 0.0002 + Math.random() * 0.0008;
+    pSizes[i] = 0.005 + Math.random() * 0.02;
+}
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+
+var pMat = new THREE.PointsMaterial({
+    color: 0xaa0000, size: 0.015, transparent: true, opacity: 0.3,
+    blending: THREE.AdditiveBlending, depthWrite: false
+});
+var particles = new THREE.Points(pGeo, pMat);
+scene.add(particles);
+
+// ===== WEB AUDIO API =====
+var audioCtx, analyser, dataArray;
+var audioLevel = 0;
+var micActive = false;
+var micSource = null;
+var songSource = null;
+var songEl = null;
+
+function initAudio() {
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 256;
+        dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+        navigator.mediaDevices.getUserMedia({ audio: true }).then(function(stream) {
+            micSource = audioCtx.createMediaStreamSource(stream);
+            micSource.connect(analyser);
+            micActive = true;
+            micStatus.textContent = '[ MIC ACTIVE ]';
+            micStatus.className = 'active';
+        }).catch(function() {
+            micStatus.textContent = '[ MIC UNAVAILABLE ]';
+        });
+    } catch(e) {
+        micStatus.textContent = '[ MIC UNSUPPORTED ]';
+    }
+}
+initAudio();
+
+function loadSong(file) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    var url = URL.createObjectURL(file);
+    if (songEl) { songEl.pause(); songEl.src = ''; URL.revokeObjectURL(songEl._src); }
+    if (songSource) { songSource.disconnect(); songSource = null; }
+    if (micSource) micSource.disconnect();
+    songEl = new Audio();
+    songEl._src = url;
+    trackName.textContent = file.name;
+    trackName.className = 'info name active';
+    micStatus.textContent = '[ LOADING: ' + file.name + ' ]';
+    function startPlay() {
+        if (songSource) return;
+        try {
+            songSource = audioCtx.createMediaElementSource(songEl);
+            songSource.connect(analyser);
+            analyser.connect(audioCtx.destination);
+            songEl.play();
+            micActive = false;
+            playBtn.textContent = 'PAUSE';
+            playBtn.className = 'active';
+            micStatus.textContent = '[ PLAYING: ' + file.name + ' ]';
+            micStatus.className = 'active';
+        } catch(e) {
+            micStatus.textContent = '[ SOURCE ERROR ]';
+            if (micSource) micSource.connect(analyser);
+        }
+    }
+    songEl.addEventListener('canplay', startPlay);
+    songEl.addEventListener('timeupdate', function() {
+        if (songEl && songEl.duration) {
+            seekBar.max = songEl.duration;
+            seekBar.value = songEl.currentTime;
+            timeDisplay.textContent = fmtTime(songEl.currentTime) + ' / ' + fmtTime(songEl.duration);
+        }
+    });
+    songEl.addEventListener('ended', function() {
+        if (songSource) { songSource.disconnect(); songSource = null; }
+        analyser.disconnect();
+        URL.revokeObjectURL(songEl._src);
+        songEl = null;
+        trackName.textContent = '[ NO TRACK ]';
+        trackName.className = 'info name';
+        seekBar.value = 0;
+        timeDisplay.textContent = '00:00 / 00:00';
+        if (micSource) micSource.connect(analyser);
+        micActive = true;
+        playBtn.textContent = 'PLAY';
+        playBtn.className = '';
+        micStatus.textContent = '[ MIC ACTIVE ]';
+        micStatus.className = 'active';
+    });
+    songEl.src = url;
+}
+
+function fmtTime(t) {
+    if (!t || isNaN(t)) return '00:00';
+    var m = Math.floor(t / 60);
+    var s = Math.floor(t % 60);
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+
+var loadBtn = document.getElementById('load-btn');
+var playBtn = document.getElementById('play-btn');
+var seekBar = document.getElementById('seek-bar');
+var timeDisplay = document.getElementById('time-display');
+var trackName = document.getElementById('track-name');
+
+loadBtn.addEventListener('click', function() {
+    document.getElementById('song-file').click();
+});
+playBtn.addEventListener('click', function() {
+    if (!songEl) return;
+    if (songEl.paused) {
+        songEl.play();
+        playBtn.textContent = 'PAUSE';
+        playBtn.className = 'active';
+    } else {
+        songEl.pause();
+        playBtn.textContent = 'PLAY';
+        playBtn.className = '';
+    }
+});
+seekBar.addEventListener('input', function() {
+    if (songEl) songEl.currentTime = parseFloat(seekBar.value);
+});
+document.getElementById('song-file').addEventListener('change', function(e) {
+    if (e.target.files.length > 0) loadSong(e.target.files[0]);
+    e.target.value = '';
+});
+document.addEventListener('dragover', function(e) { e.preventDefault(); });
+document.addEventListener('drop', function(e) {
+    e.preventDefault();
+    var f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('audio/')) loadSong(f);
+});
+
+// ===== EFFECTS STATE =====
+var time = 0;
+var flashTimeout = null;
+var glitchRounds = [];
+
+// ===== FIT TO SCREEN =====
+function fitToScreen() {
+    var maxH = window.innerHeight;
+    var fsByH = Math.floor(maxH / (rows * 1.05));
+    pre.style.fontSize = Math.max(fsByH, 4) + 'px';
+}
+fitToScreen();
+window.addEventListener('resize', function() {
     fitToScreen();
-    window.addEventListener('resize', fitToScreen);
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
 
-    art.forEach(function(line) {
-        var row = [];
-        for (var i = 0; i < line.length; i++) {
-            var span = document.createElement('span');
-            span.className = 'char';
-            span.textContent = line[i];
-            span.dataset.orig = line[i];
-            pre.appendChild(span);
-            allChars.push(span);
-            row.push(span);
+// ===== NEON SWEEP (a scalare) =====
+var neonWavePos = 0;
+var neonWaveDir = 1;
+
+// ===== GLITCH =====
+function doGlitch() {
+    var allSpans = pre.querySelectorAll('span');
+    if (allSpans.length === 0) return;
+    var spanArray = [];
+    for (var i = 0; i < allSpans.length; i++) {
+        if (allSpans[i].textContent !== '\n' && allSpans[i].textContent !== ' ') {
+            spanArray.push(allSpans[i]);
         }
-        charRows.push(row);
-        pre.appendChild(document.createTextNode('\n'));
-    });
-
-    function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-    function ri(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
-
-    var flashEl = document.getElementById('flash-layer');
-    function flashbang() {
-        anime.animate(flashEl, { opacity: [0, Math.random() * 0.08, 0], duration: ri(10, 50), ease: 'linear', loop: false });
-        setTimeout(flashbang, ri(2000, 6000));
     }
-    setTimeout(flashbang, 3000);
+    if (spanArray.length === 0) return;
 
-    function corruptLine() {
-        var row = pick(charRows);
-        if (!row) return;
-        var len = ri(2, 10);
-        var start = ri(0, Math.max(0, row.length - len));
-        for (var i = start; i < start + len && i < row.length; i++) {
-            if (row[i]) row[i].style.opacity = '0';
+    var intensity = 0.02 + audioLevel * 0.15;
+    var count = Math.floor(spanArray.length * intensity) + 3;
+    if (count > 60) count = 60;
+
+    var glitchChars = '@#%&OX*/\\|<>~`^:=+';
+    var affected = [];
+    for (var i = 0; i < count; i++) {
+        var idx = Math.floor(Math.random() * spanArray.length);
+        var span = spanArray[idx];
+        var orig = span.textContent;
+        span.textContent = glitchChars[Math.floor(Math.random() * glitchChars.length)];
+        span.style.color = '#ff0044';
+        affected.push({ el: span, orig: orig, idx: idx });
+    }
+
+    var dur = 30 + Math.floor(Math.random() * 60) + audioLevel * 80;
+    setTimeout(function() {
+        for (var i = 0; i < affected.length; i++) {
+            affected[i].el.textContent = affected[i].orig;
+            affected[i].el.style.color = '';
         }
-        setTimeout(function() {
-            for (var i = start; i < start + len && i < row.length; i++) {
-                if (row[i]) row[i].style.opacity = '1';
-            }
-        }, ri(40, 150));
-        setTimeout(corruptLine, ri(100, 600));
-    }
-    corruptLine();
+    }, dur);
+}
 
-    function jitter() {
-        var n = ri(1, 6);
-        for (var i = 0; i < n; i++) {
-            var idx = ri(0, allChars.length - 1);
-            var c = allChars[idx];
-            if (!c) continue;
-            var dx = ri(-2, 2);
-            var dy = ri(-1, 1);
-            c.style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-            setTimeout(function(el) { if (el) el.style.transform = ''; }, ri(30, 100), c);
+// ===== LINE CORRUPTION =====
+function doLineCorrupt() {
+    var allSpans = pre.querySelectorAll('span');
+    if (allSpans.length === 0) return;
+
+    var linesWithSpans = [];
+    var currentLine = [];
+    for (var s = 0; s < allSpans.length; s++) {
+        currentLine.push(allSpans[s]);
+        if (allSpans[s].textContent === '\n' || s === allSpans.length - 1) {
+            if (currentLine.length > 0) linesWithSpans.push(currentLine);
+            currentLine = [];
         }
-        setTimeout(jitter, ri(80, 400));
     }
-    jitter();
 
-    function waveShift() {
-        var rowIdx = ri(0, charRows.length - 1);
-        var row = charRows[rowIdx];
-        if (!row) return;
-        var dir = Math.random() > 0.5 ? 1 : -1;
-        var len = ri(4, 20);
-        var start = ri(0, Math.max(0, row.length - len));
-        for (var i = start; i < start + len && i < row.length; i++) {
-            if (row[i]) row[i].style.transform = 'translateX(' + (dir * ri(1, 4)) + 'px)';
+    var intensity = 0.05 + audioLevel * 0.2;
+    var lineCount = Math.floor(linesWithSpans.length * intensity) + 1;
+    if (lineCount > 6) lineCount = 6;
+
+    var corruptedLines = [];
+    for (var i = 0; i < lineCount; i++) {
+        var lineIdx = Math.floor(Math.random() * linesWithSpans.length);
+        var lineSpans = linesWithSpans[lineIdx];
+        var origTexts = [];
+        for (var j = 0; j < lineSpans.length; j++) {
+            origTexts.push(lineSpans[j].textContent);
+            lineSpans[j].textContent = '';
+            lineSpans[j].style.opacity = '0';
         }
-        setTimeout(function() {
-            for (var i = start; i < start + len && i < row.length; i++) {
-                if (row[i]) row[i].style.transform = '';
-            }
-        }, ri(50, 150));
-        setTimeout(waveShift, ri(100, 500));
+        corruptedLines.push({ spans: lineSpans, orig: origTexts, idx: lineIdx });
     }
-    waveShift();
 
-    var dir = 1;
-    function breathe() {
-        var scale = 1 + (Math.random() * 0.003);
-        anime.animate(pre, {
-            scale: scale,
-            duration: ri(2000, 4000),
-            ease: 'easeInOutSine',
-            direction: 'alternate',
-            loop: false
-        });
-        setTimeout(breathe, ri(2000, 4000));
-    }
-    breathe();
-
-    var glitchRows = charRows.slice(10, 30);
-    function eyeGlitch() {
-        var row = pick(glitchRows);
-        if (!row) return;
-        var center = Math.floor(row.length / 2);
-        var range = ri(5, 20);
-        var start = center - range;
-        var len = range * 2;
-        for (var i = start; i < start + len && i < row.length; i++) {
-            if (row[i] && Math.random() > 0.7) {
-                row[i].style.opacity = '0';
+    var dur = 20 + Math.floor(Math.random() * 30) + audioLevel * 40;
+    setTimeout(function() {
+        for (var i = 0; i < corruptedLines.length; i++) {
+            for (var j = 0; j < corruptedLines[i].spans.length; j++) {
+                corruptedLines[i].spans[j].textContent = corruptedLines[i].orig[j];
+                corruptedLines[i].spans[j].style.opacity = '';
             }
         }
-        setTimeout(function() {
-            for (var i = start; i < start + len && i < row.length; i++) {
-                if (row[i]) row[i].style.opacity = '1';
+    }, dur);
+}
+
+// ===== CHAR SWARM =====
+function doCharSwarm() {
+    var allSpans = pre.querySelectorAll('span');
+    if (allSpans.length === 0) return;
+    var targetSpans = [];
+    for (var i = 0; i < allSpans.length; i++) {
+        if (allSpans[i].textContent !== '\n' && allSpans[i].textContent !== ' ') {
+            targetSpans.push(allSpans[i]);
+        }
+    }
+    if (targetSpans.length === 0) return;
+
+    var intensity = 0.01 + audioLevel * 0.1;
+    var count = Math.floor(targetSpans.length * intensity) + 2;
+    if (count > 20) count = 20;
+
+    var chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789@#$%&*';
+    var affected = [];
+    for (var i = 0; i < count; i++) {
+        var idx = Math.floor(Math.random() * targetSpans.length);
+        var span = targetSpans[idx];
+        var orig = span.textContent;
+        var newChar = chars[Math.floor(Math.random() * chars.length)];
+        span.textContent = newChar;
+        span.style.color = '#aa0000';
+        affected.push({ el: span, orig: orig });
+    }
+
+    var dur = 40 + Math.floor(Math.random() * 40) + audioLevel * 60;
+    setTimeout(function() {
+        for (var i = 0; i < affected.length; i++) {
+            affected[i].el.textContent = affected[i].orig;
+            affected[i].el.style.color = '';
+        }
+    }, dur);
+}
+
+// ===== FLASH =====
+function doFlash() {
+    flashLayer.style.opacity = '0.08';
+    if (flashTimeout) clearTimeout(flashTimeout);
+    flashTimeout = setTimeout(function() {
+        flashLayer.style.opacity = '0';
+    }, 50);
+}
+
+// ===== MAIN LOOP =====
+var lastGlitch = 0;
+var lastCorrupt = 0;
+var lastSwarm = 0;
+var lastFlash = 0;
+var wavePosY = 0;
+
+function mainLoop(timeStamp) {
+    requestAnimationFrame(mainLoop);
+    time += 0.016;
+
+    // Audio data (from mic or song)
+    if (analyser) {
+        analyser.getByteFrequencyData(dataArray);
+        var sum = 0;
+        for (var i = 0; i < dataArray.length; i++) sum += dataArray[i];
+        audioLevel = Math.min(sum / dataArray.length / 255 * 2, 1);
+    } else {
+        audioLevel *= 0.95;
+    }
+
+    // --- Three.js ---
+    // Particles
+    var posArray = particles.geometry.attributes.position.array;
+    for (var i = 0; i < particleCount; i++) {
+        posArray[i * 3 + 1] -= pVel[i] * (1 + audioLevel * 3);
+        posArray[i * 3] += Math.sin(time + i) * 0.0002;
+        if (posArray[i * 3 + 1] < -1) {
+            posArray[i * 3 + 1] = 1;
+            posArray[i * 3] = (Math.random() - 0.5) * 2;
+        }
+    }
+    particles.geometry.attributes.position.needsUpdate = true;
+    pMat.size = 0.015 + audioLevel * 0.05;
+    pMat.opacity = 0.15 + audioLevel * 0.6;
+
+    // Background texture slight wave
+    bgMesh.material.opacity = 0.1 + audioLevel * 0.3;
+
+    // Respawn particles when audio spikes
+    if (audioLevel > 0.6) {
+        for (var i = 0; i < 5; i++) {
+            var idx = Math.floor(Math.random() * particleCount);
+            posArray[idx * 3] = (Math.random() - 0.5) * 2;
+            posArray[idx * 3 + 1] = 1;
+        }
+    }
+
+    renderer.render(scene, camera);
+
+    // --- Neon (a scalare) ---
+    var neonSpeed = 0.15 + audioLevel * 0.3;
+    neonWavePos += neonWaveDir * neonSpeed;
+    if (neonWavePos > rows) neonWaveDir = -1;
+    if (neonWavePos < 0) neonWaveDir = 1;
+    var bandWidth = 4 + audioLevel * 8;
+
+    for (var ri = 0; ri < spanLines.length; ri++) {
+        var li = spanLines[ri];
+        var dist = Math.abs(ri - neonWavePos);
+        var inten = Math.max(0, 1 - dist / (bandWidth / 2 + 0.1));
+        inten = Math.min(inten * (1 + audioLevel * 2), 1.5);
+        for (var ci = 0; ci < li.length; ci++) {
+            if (inten > 0.01) {
+                li[ci].style.textShadow =
+                    '0 0 ' + Math.floor(2 + 8 * inten) + 'px #aa0000,' +
+                    '0 0 ' + Math.floor(4 + 16 * inten) + 'px #aa0000';
+            } else {
+                li[ci].style.textShadow = '';
             }
-        }, ri(30, 80));
-        setTimeout(eyeGlitch, ri(200, 1500));
-    }
-    eyeGlitch();
-
-    function ascend() {
-        anime.animate(pre, {
-            translateY: ['0px', '-1px', '0px'],
-            duration: 6000,
-            ease: 'easeInOutSine',
-            loop: false
-        });
-        setTimeout(ascend, 8000);
-    }
-    ascend();
-
-    function neonRow(rowIdx, intensity) {
-        var row = charRows[rowIdx];
-        if (!row) return;
-        var s = '0 0 ' + ri(2,5) + 'px rgba(255,0,0,' + intensity + '), 0 0 ' + ri(5,12) + 'px rgba(200,0,0,' + (intensity*0.5) + '), 0 0 ' + ri(10,25) + 'px rgba(150,0,0,' + (intensity*0.2) + ')';
-        for (var i = 0; i < row.length; i++) {
-            if (row[i]) row[i].style.textShadow = s;
         }
     }
 
-    function clearNeon() {
-        for (var r = 0; r < charRows.length; r++) {
-            var row = charRows[r];
-            if (!row) continue;
-            for (var i = 0; i < row.length; i++) {
-                if (row[i]) row[i].style.textShadow = '';
-            }
-        }
+    // --- Glitch effects with audio-driven intervals ---
+    var glitchInterval = Math.max(40, 200 - audioLevel * 180);
+    var corruptInterval = Math.max(100, 400 - audioLevel * 350);
+    var swarmInterval = Math.max(80, 300 - audioLevel * 250);
+    var flashInterval = Math.max(1000, 5000 - audioLevel * 4000);
+
+    if (timeStamp - lastGlitch > glitchInterval) {
+        doGlitch();
+        lastGlitch = timeStamp;
+    }
+    if (timeStamp - lastCorrupt > corruptInterval) {
+        doLineCorrupt();
+        lastCorrupt = timeStamp;
+    }
+    if (timeStamp - lastSwarm > swarmInterval) {
+        doCharSwarm();
+        lastSwarm = timeStamp;
+    }
+    if (audioLevel > 0.4 && timeStamp - lastFlash > flashInterval) {
+        doFlash();
+        lastFlash = timeStamp;
     }
 
-    function neonWave() {
-        clearNeon();
-        var peak = ri(0, charRows.length - 1);
-        var spread = ri(3, 8);
-        for (var r = 0; r < charRows.length; r++) {
-            var dist = Math.abs(r - peak);
-            if (dist <= spread) {
-                var intensity = 1 - (dist / spread);
-                neonRow(r, 0.1 + intensity * 0.6);
-            }
-        }
-        setTimeout(function() { clearNeon(); }, ri(100, 300));
-        setTimeout(neonWave, ri(200, 800));
-    }
-    neonWave();
+    // Subtle breathing & rotation (via CSS transform on pre)
+    var breathe = 1 + Math.sin(time * 0.5) * 0.003 * (1 + audioLevel);
+    var rotY = Math.sin(time * 0.3) * 0.15 * (1 + audioLevel * 2);
+    pre.style.transform =
+        'scale(' + breathe + ') rotateY(' + rotY + 'deg)';
 
-    function neonSweep() {
-        clearNeon();
-        var dir = Math.random() > 0.5 ? 1 : -1;
-        var len = ri(4, 10);
-        var start = dir > 0 ? 0 : charRows.length - 1;
-        for (var step = 0; step < len; step++) {
-            var idx = start + step * dir;
-            if (idx < 0 || idx >= charRows.length) break;
-            (function(rowIdx, d) {
-                setTimeout(function() { neonRow(rowIdx, 0.5 + Math.random() * 0.3); }, d);
-            })(idx, step * ri(20, 50));
-        }
-        setTimeout(function() { clearNeon(); }, ri(80, 200));
-        setTimeout(neonSweep, ri(300, 1500));
-    }
-    neonSweep();
+    // Filter softness intensifies with audio
+    var blurAmt = 0.3 + audioLevel * 0.5;
+    document.getElementById('ascii-wrap').style.filter =
+        'blur(' + blurAmt + 'px)';
 
-    function bgGlow() {
-        anime.animate('#glow-bg', {
-            opacity: [0.3, 0.8, 0.3],
-            duration: ri(2000, 5000),
-            ease: 'easeInOutSine',
-            loop: false
-        });
-        setTimeout(bgGlow, ri(2000, 5000));
-    }
-    bgGlow();
+    // Background glow pulse with audio
+    var glowEl = document.getElementById('glow-bg');
+    var glowScale = 0.8 + audioLevel * 0.8;
+    var glowOpacity = 0.3 + audioLevel * 0.7;
+    glowEl.style.transform =
+        'translate(-50%,-50%) scale(' + glowScale + ')';
+    glowEl.style.opacity = glowOpacity;
+}
+requestAnimationFrame(mainLoop);
 
-    anime.animate('pre', {
-        opacity: [1, 0.92, 1],
-        duration: 100 + ri(0, 100),
-        loop: true,
-        direction: 'alternate',
-        ease: 'linear'
-    });
 })();
 </script>
 </body>
